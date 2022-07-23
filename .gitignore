@@ -1,0 +1,3 @@
+.idea
+nginx/log/*.log
+requests.http

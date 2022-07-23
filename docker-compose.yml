@@ -1,0 +1,50 @@
+version: '3.7'
+services:
+  app:
+    image: node:lts
+    volumes:
+      - ./app:/app:ro
+    command: "npm start --prefix /app"
+  nginx:
+    image: nginx:1.23.1
+    volumes:
+      - ./nginx/config:/etc/nginx/conf.d:ro
+      - ./nginx/log:/var/log/nginx:rw
+    ports:
+      - "8080:80"
+    depends_on:
+      - filebeat
+      - app
+  filebeat:
+    image: elastic/filebeat:7.17.5
+    entrypoint: "filebeat -e -strict.perms=false"
+    volumes:
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./nginx/log:/var/log/nginx:ro
+    depends_on:
+      - logstash
+  logstash:
+    image: elastic/logstash:7.17.5
+    ports:
+      - '5044:5044'
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      - elasticsearch
+  # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+  elasticsearch:
+    image: elastic/elasticsearch:7.17.5
+    # image: elasticsearch:8.3.2
+    ports:
+      - '9200:9200'
+    environment:
+      - cluster.name=demo-cluster
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+  kibana:
+    image: elastic/kibana:7.17.5
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
